@@ -1,36 +1,79 @@
 #!/usr/bin/python
+
+# TCSS499 Research Group
+# University of Washington, Tacoma
+# Enabling learning through hands on experience with Raspberri Pi
+# Contributors: Michael Quandt, 
+# See references in parent project 'Define and Populate' lab
+
+
+# Program Spec
+# knobread.py opens a connection to MySQLdb using a existing
+# user and database.  It then reads the connected potentiometer
+# every second and commits that data to the specified database
+# with an abrieviated timestamp.
+
+# Program setup requirements
+# - Connect the rotary angular sensor (potentiometer) to port A2
+
+# Program UI
+# - A time accompanied by its corresponding reading will print to
+#   console every second.
+# - Twist the potentiometer and observe the real-time data
+# - End program using the ctrl+c
+
+
+
+# Get the necessary libraries for interfacing
 import MySQLdb
-import time
 import grovepi
+import time
+import datetime
+
 #connect to MySQLdb
-db=MySQLdb.connect("localhost", "potentiometer", "tcss499", "knobreadtime")
-cursor=db.cursor();
+#                    <host>       <MySQL user>     <pwrd>    <db_name>
+db=MySQLdb.connect("localhost", "potentiometer", "tcss499", "knobreads")
+
+# enable traversal of the relation db
+cursor=db.cursor(); 
 
 # Connect the Rotary Angle Sensor to analog port A2
 potentiometer = 2
 
+# stall the first data-read
 time.sleep(1)
-i = 0
-localtime = time.ctime();
+
+# the operational loop
 while True:
 	try:
-        t = time.ctime();
-		# Read resistance from potentiometer
-		i = grovepi.analogRead(potentiometer)
-		print(i)
+        	# get the system time
+		localtime = datetime.datetime.now()
+		
+		# store the current potentiometer reading
+		currentRead = grovepi.analogRead(potentiometer)
+		# print data, localtime is parsed to have form: <'HH:MM:SS'>
+		print('Time {}  ::  Reading {}'.format(localtime.strftime('%H:%M:%S'), currentRead))
 
-        # FROM https://dev.mysql.com/doc/connector-python/en/connector-python-api-mysqlcursor-execute.html
-        insert_stmt = (
-            "INSERT INTO employees (emp_no, first_name, last_name, hire_date) "
-            "VALUES (%s, %s)"
-        )
-        data = (localtime, i)
-        try:
-            cursor.execute(insert_stmt, data)
-            db.commit();
-        except:
-            db.rollback();
+        	
+        	# create the MySQL INSERT INTO statement
+		insert_stmt = (
+            		"INSERT INTO knobreadtime (rtime, reading) "
+            		"VALUES (%s, %s)"
+        	)
+		
+		# store the data which corresponds to the '%s' in VALUES clause
+        	data = (localtime.strftime('%H:%M:%S'), currentRead)
+		
+		# save the current readings to the database
+        	try:
+            		cursor.execute(insert_stmt, data)
+            		db.commit()
+        	except:
+            		db.rollback()
+		
+		# stall to limit one reading each second
+		time.sleep(1)
+	
+	# error logging
 	except IOError:
 		print("Error")
-
-db.close();
