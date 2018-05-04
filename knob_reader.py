@@ -2,15 +2,15 @@
 
 # TCSS499 Research Group
 # University of Washington, Tacoma
-# Enabling learning through hands on experience with Raspberri Pi
-# Contributors: Michael Quandt, 
+# IoT Education in Research
+# Contibutors: Michael Quandt
 # See references in parent project 'Define and Populate' lab
 
 
 # Program Spec
 # knob_reader.py opens a connection to MySQLdb using a existing
 # user and database.  It then reads the connected potentiometer
-# every second and commits that data to the specified database
+# every second and commits the reading to the specified database
 # with an abrieviated timestamp.
 
 # Program setup requirements
