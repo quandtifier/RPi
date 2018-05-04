@@ -115,11 +115,14 @@ while True:
 			avg_wind_delta_5 = avgs
 
 		output_intensity = 0
-		if current_wind < 75.0:
-			output_intensity = current_noise
+		if current_wind < 75:
+			output_intensity = current_noise + (current_wind * .75)
 			print('Out: {}'.format(output_intensity))
 
 		print('avg: {}'.format(avg_wind_delta_5))
+		
+		# Send PWM signal to LED
+		grovepi.analogWrite(led,current_noise//4)
 
 	# error logging
 	except IOError:
