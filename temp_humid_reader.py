@@ -30,6 +30,7 @@ import MySQLdb
 import grovepi
 import time
 import datetime
+import math
 
 
 #connect to MySQLdb
@@ -40,7 +41,7 @@ db=MySQLdb.connect("localhost", "lab3admin", "tcss499", "lab3")
 cursor=db.cursor(); 
 
 # Connect the Grove Temperature and Humidity Sensor to Port A1
-ths = 1
+ths = 4
 
 # stall the first data-read
 time.sleep(1)
@@ -52,10 +53,10 @@ while True:
 		localtime = datetime.datetime.now()
 		
 		# store the current temperature and humidity reading
-		[temperature,humidity] = grovepi.analogRead(potentiometer)
-		# print data, localtime is parsed to have form: <'HH:MM:SS'>
-		print('Time {}  ::  Temperature {}, Humidity {}'.format(localtime.strftime('%H:%M:%S'), temperature, humidity))
-
+		[temperature,humidity] = grovepi.dht(ths,0) # 0 indicates the sensor type
+		if math.isnan(temperature) == False and math.isnan(humidity) == False:
+			# print data, localtime is parsed to have form: <'HH:MM:SS'>
+			print('Time {} :: Temperature = {}, Humidity = {}'.format(localtime.strftime('%H:%M:%S'), temperature, humidity))
         	
         	# create the MySQL INSERT INTO statement
 		insert_stmt = (
