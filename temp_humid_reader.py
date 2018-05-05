@@ -1,5 +1,8 @@
 #!/usr/bin/python
 
+#################################### NOTES AND BUGS ######################################
+# BUG 1: Program waits for 2 seconds between readings although it appears that the code specs otherwise
+
 
 # IoT Education in Research
 # TCSS499 Research Group
@@ -32,6 +35,7 @@ import time
 import datetime
 import math
 
+##################################### MANAGE CONNECTIONS #######################################3
 
 #connect to MySQLdb
 #                    <host>     <MySQL user>  <pwrd>   <db_name>
@@ -43,12 +47,15 @@ cursor=db.cursor();
 # Connect the Grove Temperature and Humidity Sensor to Port A1
 ths = 4
 
-# stall the first data-read
-time.sleep(1)
 
-# the operational loop
+# Operational Loop
 while True:
+	# limit one reading each second
+	time.sleep(1) #### BUG 1
 	try:
+
+#############################GET DATA AND PRINT IT TO CONSOLE#################################
+
         	# get the system time
 		localtime = datetime.datetime.now()
 		
@@ -58,6 +65,10 @@ while True:
 			# print data, localtime is parsed to have form: <'HH:MM:SS'>
 			print('Time {} :: Temperature = {}, Humidity = {}'.format(localtime.strftime('%H:%M:%S'), temperature, humidity))
         	
+
+############################# BUILD INSERT STATEMENTS #########################################
+
+
         	# create the MySQL INSERT INTO statement
 		insert_stmt = (
             		"INSERT INTO temperature_readings (rtime, reading) "
@@ -75,6 +86,7 @@ while True:
 		# store the data which corresponds to the '%s' in VALUES clause
         	humid_data = (localtime.strftime('%H:%M:%S'), humidity)
 
+############################### SAVING CHANGES ###########################################
 		# save the current readings to the database
         	try:
             		cursor.execute(insert_stmt, temp_data)
@@ -82,9 +94,8 @@ while True:
             		db.commit()
         	except:
             		db.rollback()
-		
-		# stall to limit one reading each second
-		time.sleep(1)
+
+
 	
 	# stop the program
 	except KeyboardInterrupt:
