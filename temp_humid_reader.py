@@ -35,7 +35,7 @@ import time
 import datetime
 import math
 
-##################################### MANAGE CONNECTIONS #######################################3
+##################################### MANAGE CONNECTIONS #######################################
 
 #connect to MySQLdb
 #                    <host>     <MySQL user>  <pwrd>   <db_name>

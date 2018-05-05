@@ -1,10 +1,14 @@
 #!/usr/bin/python
 
+#################################### NOTES AND BUGS ######################################
+# BUG 1: Program does not exit properly using 'except KeyboardInterrupt'
+# BUG 2: Program struggles with datatypes for comparisons when using the average wind reading
+
+
+
+# IoT Education in Research
 # TCSS499 Research Group
 # University of Washington, Tacoma
-# Enabling learning through hands on experience with Raspberri Pi
-# Contributors: Michael Quandt, 
-# See references in parent project 'Define and Populate' lab
 
 
 # Program Spec
@@ -34,11 +38,11 @@ import grovepi
 import time
 import datetime
 
-
+##################################### MANAGE CONNECTIONS #######################################
 
 #connect to MySQLdb
-#                    <host>      <MySQL user>   <pwrd>  <db_name>
-db=MySQLdb.connect("localhost", "sc1program", "tcss499", "sc1")
+#                    <host>        <MySQL user>         <pwrd>        <db_name>
+db=MySQLdb.connect("localhost", "noiseadmin", "tcss499", "noise_station_db")
 
 # enable traversal of the relation db
 cursor=db.cursor(); 
@@ -52,12 +56,15 @@ potentiometer = 2
 led = 5
 grovepi.pinMode(led,"OUTPUT")
 
-# stall the first data-read
-time.sleep(1)
 
 # the operational loop
 while True:
+	# stall to limit one reading each second
+	time.sleep(1)
+
 	try:
+
+#############################GET DATA AND PRINT IT TO CONSOLE#################################
         	# get the system time
 		localtime = datetime.datetime.now()
 		
@@ -69,11 +76,12 @@ while True:
 		# print data, localtime is parsed to have form: <'HH:MM:SS'>
 		print('Noise -> Time {}  ::  Reading {}'.format(localtime.strftime('%H:%M:%S'), current_noise))
 		print('Wind -> Time {}  ::  Reading {}'.format(localtime.strftime('%H:%M:%S'), current_wind))
-        	
+
+############################# BUILD INSERT STATEMENTS #########################################	
 
         	# create the MySQL INSERT INTO statement
 		insert_noise = (
-            		"INSERT INTO micreads (rtime, reading) "
+            		"INSERT INTO mic_readings (rtime, reading) "
             		"VALUES (%s, %s)"
         	)
 		data_noise = (localtime.strftime('%H:%M:%S'), current_noise)
@@ -85,7 +93,7 @@ while True:
         	)
 		data_wind = (localtime.strftime('%H:%M:%S'), current_wind)
         	
-
+############################### SAVING CHANGES ###########################################
 		
 		# save the current readings to the database
         	try:
@@ -96,34 +104,41 @@ while True:
         	except:
             		db.rollback()
 		
-		# stall to limit one reading each second
-		time.sleep(1)
 
+##################################### find average over last 5 seconds ###################
+
+#### BUG 2
 		# get read to query the database for the last 5 second windspeed average
-		tminusten = localtime - datetime.timedelta(seconds=5)
-		tminusten = tminusten.strftime('%H:%M:%S')
+		tminusfive = localtime - datetime.timedelta(seconds=5)
+		tminusfive = tminusfive.strftime('%H:%M:%S')
 		average_wind_query = (
 			"SELECT AVG(windspeeds.reading) as avgs "
 			"FROM windspeeds "
 			"WHERE windspeeds.rtime > %s"
 		)
-		data_avg_wind = (tminusten)
-		avg_wind_delta_5 = 0
-		cursor.execute(average_wind_query, data_avg_wind)
+		global avg_wind_delta_5
+		cursor.execute(average_wind_query, tminusfive)
 		for (avgs) in cursor:
-			print('avg wind: {}'.format(avgs))
-			avg_wind_delta_5 = avgs
+			print avgs[0]
+			avg_wind_delta_5 = avgs[0] #### Bug 2 This is type(decimal.Decimal)
 
-		output_intensity = 0
-		if current_wind < 75:
-			output_intensity = current_noise + (current_wind * .75)
-			print('Out: {}'.format(output_intensity))
+		global output_intensity
+		if current_wind < 75: #if the wind > 75 we will not do any noise cancellation
+			# Make the noise cancellation a function of 3/4(avg_wind)
+			output_intensity = current_noise + (avg_wind_delta_5 * .75)
 
-		print('avg: {}'.format(avg_wind_delta_5))
 		
 		# Send PWM signal to LED
-		grovepi.analogWrite(led,current_noise//4)
+		grovepi.analogWrite(led,output_intensity)
+
+
+	# stop the program
+	except KeyboardInterrupt:###### BUG 1
+		db.close()
+		grovepi.analogWrite(led,0)
+		break
 
 	# error logging
 	except IOError:
 		print("Error")
+
