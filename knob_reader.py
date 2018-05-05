@@ -1,10 +1,9 @@
 #!/usr/bin/python
 
+
+# IoT Education in Research
 # TCSS499 Research Group
 # University of Washington, Tacoma
-# IoT Education in Research
-# Contibutors: Michael Quandt
-# See references in parent project 'Define and Populate' lab
 
 
 # Program Spec
