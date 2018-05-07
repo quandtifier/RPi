@@ -52,8 +52,8 @@ soundsensor = 1
 # Connect the potentiometer to analog port A2
 potentiometer = 2
 
-# Connect the LED to analog port A2
-led = 5
+# Connect the LED to analog port A3
+led = 3
 grovepi.pinMode(led,"OUTPUT")
 
 
@@ -75,7 +75,7 @@ while True:
 
 		# print data, localtime is parsed to have form: <'HH:MM:SS'>
 		print('Noise -> Time {}  ::  Reading {}'.format(localtime.strftime('%H:%M:%S'), current_noise))
-		print('Wind -> Time {}  ::  Reading {}'.format(localtime.strftime('%H:%M:%S'), current_wind))
+		print('Wind  -> Time {}  ::  Reading {}'.format(localtime.strftime('%H:%M:%S'), current_wind))
 
 ############################# BUILD INSERT STATEMENTS #########################################	
 
@@ -119,26 +119,26 @@ while True:
 		global avg_wind_delta_5
 		cursor.execute(average_wind_query, tminusfive)
 		for (avgs) in cursor:
-			print avgs[0]
-			avg_wind_delta_5 = avgs[0] #### Bug 2 This is type(decimal.Decimal)
+			avg_wind_delta_5 = float(avgs[0]) #### Bug 2 This is type(decimal.Decimal)
 
 		global output_intensity
 		if current_wind < 75: #if the wind > 75 we will not do any noise cancellation
 			# Make the noise cancellation a function of 3/4(avg_wind)
 			output_intensity = current_noise + (avg_wind_delta_5 * .75)
+		else:
+			output_intensity = 0
 
 		
 		# Send PWM signal to LED
-		grovepi.analogWrite(led,output_intensity)
-
+		grovepi.analogWrite(led,int(output_intensity)//4)
 
 	# stop the program
 	except KeyboardInterrupt:###### BUG 1
-		db.close()
 		grovepi.analogWrite(led,0)
-		break
 
 	# error logging
 	except IOError:
 		print("Error")
 
+db.close()
+grovepi.analogWrite(led,0)
