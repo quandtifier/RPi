@@ -2,7 +2,6 @@
 
 #################################### NOTES AND BUGS ######################################
 # BUG 1: Program does not exit properly using 'except KeyboardInterrupt'
-# BUG 2: Program struggles with datatypes for comparisons when using the average wind reading
 
 
 
@@ -60,9 +59,10 @@ grovepi.pinMode(led,"OUTPUT")
 # the operational loop
 while True:
 	# stall to limit one reading each second
-	time.sleep(1)
+	#time.sleep(1)
 
 	try:
+		time.sleep(1)
 
 #############################GET DATA AND PRINT IT TO CONSOLE#################################
         	# get the system time
@@ -107,7 +107,7 @@ while True:
 
 ##################################### find average over last 5 seconds ###################
 
-#### BUG 2
+
 		# get read to query the database for the last 5 second windspeed average
 		tminusfive = localtime - datetime.timedelta(seconds=5)
 		tminusfive = tminusfive.strftime('%H:%M:%S')
@@ -119,7 +119,7 @@ while True:
 		global avg_wind_delta_5
 		cursor.execute(average_wind_query, tminusfive)
 		for (avgs) in cursor:
-			avg_wind_delta_5 = float(avgs[0]) #### Bug 2 This is type(decimal.Decimal)
+			avg_wind_delta_5 = float(avgs[0])
 
 		global output_intensity
 		if current_wind < 75: #if the wind > 75 we will not do any noise cancellation
@@ -133,12 +133,13 @@ while True:
 		grovepi.analogWrite(led,int(output_intensity)//4)
 
 	# stop the program
-	except KeyboardInterrupt:###### BUG 1
-		grovepi.analogWrite(led,0)
+	except KeyboardInterrupt as k:
+		print('Keyboard interruption... Now exiting: %s'%k)
+		break
 
 	# error logging
 	except IOError:
 		print("Error")
-
+cursor.close()
 db.close()
 grovepi.analogWrite(led,0)

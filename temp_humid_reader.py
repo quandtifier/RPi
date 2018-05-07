@@ -51,9 +51,9 @@ ths = 4
 # Operational Loop
 while True:
 	# limit one reading each second
-	time.sleep(1) #### BUG 1
-	try:
 
+	try:
+		time.sleep(1) ### BUG 1
 #############################GET DATA AND PRINT IT TO CONSOLE#################################
 
         	# get the system time
@@ -61,9 +61,9 @@ while True:
 		
 		# store the current temperature and humidity reading
 		[temperature,humidity] = grovepi.dht(ths,0) # 0 indicates the sensor type
-		if math.isnan(temperature) == False and math.isnan(humidity) == False:
+		#if math.isnan(temperature) == False and math.isnan(humidity) == False:
 			# print data, localtime is parsed to have form: <'HH:MM:SS'>
-			print('Time {} :: Temperature = {}, Humidity = {}'.format(localtime.strftime('%H:%M:%S'), temperature, humidity))
+		print('Time {} :: Temperature = {}, Humidity = {}'.format(localtime.strftime('%H:%M:%S'), temperature, humidity))
         	
 
 ############################# BUILD INSERT STATEMENTS #########################################
@@ -95,13 +95,14 @@ while True:
         	except:
             		db.rollback()
 
-
-	
 	# stop the program
-	except KeyboardInterrupt:
-		db.close()
+	except KeyboardInterrupt as k:
+		print('Keyboard interruption... Now exiting: %s'%k)
 		break
 
 	# error logging
 	except IOError:
 		print("Error")
+
+cursor.close()
+db.close()
