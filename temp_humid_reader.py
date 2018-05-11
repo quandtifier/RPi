@@ -1,7 +1,6 @@
 #!/usr/bin/python
 
 #################################### NOTES AND BUGS ######################################
-# BUG 1: Program waits for 2 seconds between readings although it appears that the code specs otherwise
 
 
 # IoT Education in Research
@@ -41,19 +40,28 @@ import math
 #                    <host>     <MySQL user>  <pwrd>   <db_name>
 db=MySQLdb.connect("localhost", "lab3admin", "tcss499", "lab3")
 
-# enable traversal of the relation db
-cursor=db.cursor(); 
-
-# Connect the Grove Temperature and Humidity Sensor to Port A1
+# Connect the Grove Temperature and Humidity Sensor to Port D4
 ths = 4
+
+# Connect the Grove Buzzer to A1
+buzz = 3
+
+
+# Operational Variables
+global localtime
+global insert_into_temp
+global temp_date
+global insert_into_humidity
+global humid_data
 
 
 # Operational Loop
 while True:
-	# limit one reading each second
-
+	# enable traversal of the db tables
+	cursor=db.cursor(); 
 	try:
-		time.sleep(1) ### BUG 1
+		time.sleep(2) # ths has a 2 second signal collection period
+
 #############################GET DATA AND PRINT IT TO CONSOLE#################################
 
         	# get the system time
@@ -61,16 +69,16 @@ while True:
 		
 		# store the current temperature and humidity reading
 		[temperature,humidity] = grovepi.dht(ths,0) # 0 indicates the sensor type
-		#if math.isnan(temperature) == False and math.isnan(humidity) == False:
+		if math.isnan(temperature) == False and math.isnan(humidity) == False:
 			# print data, localtime is parsed to have form: <'HH:MM:SS'>
-		print('Time {} :: Temperature = {}, Humidity = {}'.format(localtime.strftime('%H:%M:%S'), temperature, humidity))
+			print('Time {} :: Temperature = {}, Humidity = {}'.format(localtime.strftime('%H:%M:%S'), temperature, humidity))
         	
 
 ############################# BUILD INSERT STATEMENTS #########################################
 
 
         	# create the MySQL INSERT INTO statement
-		insert_stmt = (
+		insert_into_temp = (
             		"INSERT INTO temperature_readings (rtime, reading) "
             		"VALUES (%s, %s)"
         	)
@@ -78,7 +86,7 @@ while True:
 		# store the data which corresponds to the '%s' in VALUES clause
         	temp_data = (localtime.strftime('%H:%M:%S'), temperature)
 		
-		insert_stmt2 = (
+		insert_into_humidity = (
             		"INSERT INTO humidity_readings (rtime, reading) "
             		"VALUES (%s, %s)"
         	)
@@ -89,15 +97,24 @@ while True:
 ############################### SAVING CHANGES ###########################################
 		# save the current readings to the database
         	try:
-            		cursor.execute(insert_stmt, temp_data)
-			cursor.execute(insert_stmt2, humid_data)
+            		cursor.execute(insert_into_temp, temp_data)
+			cursor.execute(insert_into_humidity, humid_data)
             		db.commit()
         	except:
             		db.rollback()
+		finally:
+			cursor.close()
+
+		# signal the humidity above threshold
+		if int(humidity) > 91:
+			grovepi.digitalWrite(buzz, 1)
+		else:
+			grovepi.digitalWrite(buzz, 0)
 
 	# stop the program
 	except KeyboardInterrupt as k:
 		print('Keyboard interruption... Now exiting: %s'%k)
+		grovepi.digitalWrite(buzz, 0)
 		break
 
 	# error logging
