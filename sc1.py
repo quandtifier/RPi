@@ -1,9 +1,5 @@
 #!/usr/bin/python
 
-#################################### NOTES AND BUGS ######################################
-# BUG 1: Program does not exit properly using 'except KeyboardInterrupt'
-
-
 
 # IoT Education in Research
 # TCSS499 Research Group
@@ -22,6 +18,7 @@
 # - Connect the sound sensor to port A1
 # - Connect the potentiometer to port A2
 # - Connect the LED to port D4
+# - Connect the Grove LCD to any I2C port
 
 # Program UI
 # - A time accompanied by its corresponding readings will print to
@@ -36,15 +33,14 @@ import MySQLdb
 import grovepi
 import time
 import datetime
-
+from grove_rgb_lcd import *
 ##################################### MANAGE CONNECTIONS #######################################
 
 #connect to MySQLdb
 #                    <host>        <MySQL user>         <pwrd>        <db_name>
 db=MySQLdb.connect("localhost", "noiseadmin", "tcss499", "noise_station_db")
 
-# enable traversal of the relation db
-cursor=db.cursor(); 
+
 
 # Connect the sound sensor to analog port A1
 soundsensor = 1
@@ -55,15 +51,21 @@ potentiometer = 2
 led = 3
 grovepi.pinMode(led,"OUTPUT")
 
+global localtime
+global current_noise
+global current_wind
+global insert_noise
+global insert_wind
+global output_intensity
 
 # the operational loop
 while True:
-	# stall to limit one reading each second
-	#time.sleep(1)
 
+	# enable traversal of the relation db
+	cursor=db.cursor(); 
 	try:
+		# stall to limit one reading each second
 		time.sleep(1)
-
 #############################GET DATA AND PRINT IT TO CONSOLE#################################
         	# get the system time
 		localtime = datetime.datetime.now()
@@ -74,8 +76,8 @@ while True:
 		current_wind = grovepi.analogRead(potentiometer) / 10
 
 		# print data, localtime is parsed to have form: <'HH:MM:SS'>
-		print('Noise -> Time {}  ::  Reading {}'.format(localtime.strftime('%H:%M:%S'), current_noise))
-		print('Wind  -> Time {}  ::  Reading {}'.format(localtime.strftime('%H:%M:%S'), current_wind))
+		print('Time {}  ::  Noise ->  {} units'.format(localtime.strftime('%H:%M:%S'), current_noise))
+		print('               ::  Wind  ->  {} mph'.format(current_wind))
 
 ############################# BUILD INSERT STATEMENTS #########################################	
 
@@ -121,17 +123,32 @@ while True:
 		for (avgs) in cursor:
 			avg_wind_delta_5 = float(avgs[0])
 
-		global output_intensity
+
 		if current_wind < 75: #if the wind > 75 we will not do any noise cancellation
-			# Make the noise cancellation a function of 3/4(avg_wind)
+			# Make the noise cancellation [c = noise + 3/4(avg_wind)]
 			output_intensity = current_noise + (avg_wind_delta_5 * .75)
 		else:
 			output_intensity = 0
 
-		
-		# Send PWM signal to LED
-		grovepi.analogWrite(led,int(output_intensity)//4)
 
+######################### SEND DATA TO THE OUTPUTS ##################################		
+		# Send PWM signal to LED
+		if int(output_intensity) > 1000:
+			output_intensity = 1000
+		grovepi.analogWrite(led,int(output_intensity)//4)
+		
+		cw = str(current_wind)
+		aw = str(int(avg_wind_delta_5))
+		n = str(current_noise)
+
+		# Control the Grove LCD
+		setRGB(0,128,64)
+		if current_wind >= 75:
+			setText("Operation Halt:\n" + "Windspeed= " + cw +"mph")
+		else:
+			setText("avgwind=" + aw + "mph\n" + "noise=" + n + "units")
+
+		cursor.close()
 	# stop the program
 	except KeyboardInterrupt as k:
 		print('Keyboard interruption... Now exiting: %s'%k)
@@ -140,6 +157,10 @@ while True:
 	# error logging
 	except IOError:
 		print("Error")
+
+# close resources and reset hardware
 cursor.close()
 db.close()
 grovepi.analogWrite(led,0)
+setRGB(0,0,0)
+setText("")
