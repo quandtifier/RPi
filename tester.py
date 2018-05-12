@@ -39,7 +39,7 @@ def do_insert(sql,data):
         except:
             	db.rollback()
 
-def insert_into(table,values):
+def insert_into_sample(values):
 	# create the MySQL INSERT INTO statement
 	insert_stmt = (
 	"INSERT INTO sample (rtime, reading) "
@@ -57,10 +57,11 @@ while True:
 		
 		# store the current potentiometer reading
 		currentRead = grovepi.analogRead(potentiometer)
+		
 		# print data, localtime is parsed to have form: <'HH:MM:SS'>
 		print('Time {}  ::  Reading {}'.format(localtime.strftime('%H:%M:%S'), currentRead))
 
-        	insert_into("sample",[localtime, currentRead])
+        	insert_into([localtime, currentRead])
   
 		# stall to limit one reading each second
 		time.sleep(1)

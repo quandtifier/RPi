@@ -34,18 +34,15 @@ import grovepi
 import time
 import datetime
 from grove_rgb_lcd import *
-##################################### MANAGE CONNECTIONS #######################################
 
 
-
-global db
-global cursor
 global localtime
 global current_noise
 global current_wind
-global last_n_seconds
 global period_for_average
-#period_for_average = 10
+period_for_average = 10
+global iteration
+iteration = 0
 
 #connect to MySQLdb
 #                    <host>      <MySQL user>    <pwrd>       <db_name>
@@ -142,32 +139,34 @@ def signal_outputs(level,avg_wind):
 
 # the operational loop
 while True:
-
-	# enable traversal of the relation db
-	cursor=db.cursor(); 
 	try:
 		# one reading every two seconds
 		time.sleep(2)
-        	# get the system time
+
+        	# get the system time and store a formatted copy
 		localtime = datetime.datetime.now()
 		formated_time = localtime.strftime('%H:%M:%S')
-		# store the current sound sensor reading
+
+		# store the current sound and wind sensor readings
 		current_noise = grovepi.analogRead(soundsensor)
-		# store the current 'wind speed'
 		current_wind = grovepi.analogRead(potentiometer) / 10
 
 		# print data, localtime is parsed to have form: <'HH:MM:SS'>
 		print('Time {}  ::  Noise ->  {} units'.format(formated_time, current_noise))
 		print('               ::  Wind  ->  {} mph'.format(current_wind))
 
-		# insert the raw data
+		# insert the data into the database
 		insert_noise_reading()
 		insert_wind_speed()
 
-		# get read to query the database for the last 5 second windspeed average
+		# query the database for the last 5 second windspeed average
 		last_n_seconds = localtime - datetime.timedelta(seconds=5)
 		last_n_seconds = last_n_seconds.strftime('%H:%M:%S')
 		avg_wind_last_n = query_avg_wind(last_n_seconds)
+		if int(iteration//2) % period_for_average == 0:
+			delta_n = localtime - datetime.timedelta(seconds=period_for_average)
+			delta_n = last_n_seconds.strftime('%H:%M:%S')
+			avg_wind_delta_n = query_avg_wind(delta_n)
 
 		#if the wind > 75 we will not do any noise cancellation
 		global output_intensity
@@ -179,6 +178,7 @@ while True:
 	
 		signal_outputs(output_intensity,avg_wind_last_n)
 
+
 	# stop the program
 	except KeyboardInterrupt as k:
 		print('Keyboard interruption... Now exiting: %s'%k)
@@ -188,8 +188,8 @@ while True:
 	except IOError:
 		print("Error")
 
+
 # close resources and reset hardware
-cursor.close()
 db.close()
 grovepi.analogWrite(led,0)
 setRGB(0,0,0)
