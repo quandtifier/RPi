@@ -8,9 +8,8 @@
 
 
 # Program Spec
-# noise_canceller.py does not run as-downloaded.  After building 
-# a database with the necessary schema, complete the script below
-# where indicated by 'TODO:' opens a connection to MySQLdb using a existing
+# noise_canceller_sol.py is a solution set for the like named Python
+# scrypt. It opens a connection to MySQLdb using a existing
 # user and database.  It then reads the connected sound sensor
 # and potentiometer every two seconds and commits that data to the 
 # specified database with a timestamp.
@@ -32,12 +31,14 @@
 # - End program using the ctrl+c
 
 
+
 import MySQLdb
 import grovepi
 import time
 import datetime
 from grove_rgb_lcd import *
 from decimal import Decimal
+
 
 global localtime
 global current_noise
@@ -62,10 +63,9 @@ potentiometer = 2
 led = 3
 grovepi.pinMode(led,"OUTPUT")
 
-
 # try to execute the sql insert statement
-# for help with debugging uncomment the print statements below
 def do_insert(sql,data):
+	# save the current readings to the database
         cursor = db.cursor()
 	try:
 		#print(sql)
@@ -78,54 +78,51 @@ def do_insert(sql,data):
 		cursor.close()
 
 
-####################### insert noise ################
-
 def insert_noise_data(start, end, avg, max, min):
 	dml_string = (
-            	#TODO:
-		#TODO:
+            	"INSERT INTO noise_data (start_of_delta, end_of_delta, avg_noise, max_noise, min_noise) "
+            	"VALUES (%s,%s,%s,%s,%s)"
         )
-	data = ()#TODO:
+	data = (start, end, avg, max, min)
 	do_insert(dml_string,data)
 
+####################### insert noise ################
 
 def insert_noise_reading():
 	dml_string = (
-            	#TODO:
-		#TODO:
+            	"INSERT INTO noise_readings (rtime, noise_level) "
+            	"VALUES (%s, %s)"
         )
-	data = ()#TODO:Hint: these variables are global delcared above
+	data = (localtime, current_noise)
 	do_insert(dml_string,data)
-
 
 ####################### insert wind ################
 
 def insert_wind_data(start, end, avg, max, min):
 	dml_string = (
-		#TODO:
-		#TODO:
+		"INSERT INTO wind_data (start_of_delta, end_of_delta, avg_noise, max_noise, min_noise) "
+            	"VALUES (%s,%s,%s,%s,%s)"
 	)
-	data = ()#TODO:
+	data = (start, end, avg, max, min)
 	do_insert(dml_string, data)
 
 
 def insert_wind_speed():
 	dml_string = (
-		#TODO:
-		#TODO:
+		"INSERT INTO wind_speeds (rtime, wind_speed) "
+		"VALUES (%s, %s)"
 	)
-	data = ()#TODO:
+	data = (localtime, current_wind)
 	do_insert(dml_string, data)
-
 
 ####################### aggregate wind data retrievals ################
 
 def query_avg_wind(start):
 	cursor = db.cursor()
 	query = (
-		#TODO:
-		#TODO:
-		#TODO:
+		"SELECT AVG(wind_speeds.wind_speed) as avg "
+		"FROM wind_speeds "
+		"WHERE wind_speeds.rtime > %s"
 	)
 	cursor.execute(query, start)
 	global avgval
@@ -137,9 +134,9 @@ def query_avg_wind(start):
 def query_max_wind(start):
 	cursor = db.cursor()
 	query = (
-		#TODO:
-		#TODO:
-		#TODO:
+		"SELECT MAX(wind_speeds.wind_speed) as max "
+		"FROM wind_speeds "
+		"WHERE wind_speeds.rtime > %s"
 	)
 	cursor.execute(query, start)
 	global maxval
@@ -151,9 +148,9 @@ def query_max_wind(start):
 def query_min_wind(start):
 	cursor = db.cursor()
 	query = (
-		#TODO:
-		#TODO:
-		#TODO:
+		"SELECT MIN(wind_speeds.wind_speed) as min "
+		"FROM wind_speeds "
+		"WHERE wind_speeds.rtime > %s"
 	)
 	cursor.execute(query, start)
 	global minval
@@ -162,14 +159,15 @@ def query_min_wind(start):
 	cursor.close()
 	return minval
 
+
 ####################### aggregate noise data retrievals ################
 
 def query_avg_noise(start):
 	cursor = db.cursor()
 	query = (
-		#TODO:
-		#TODO:
-		#TODO:
+		"SELECT AVG(noise_readings.noise_level) as avg "
+		"FROM noise_readings "
+		"WHERE noise_readings.rtime > %s"
 	)
 	cursor.execute(query, start)
 	global avgval
@@ -181,9 +179,9 @@ def query_avg_noise(start):
 def query_max_noise(start):
 	cursor = db.cursor()
 	query = (
-		#TODO:
-		#TODO:
-		#TODO:
+		"SELECT MAX(noise_readings.noise_level) as max "
+		"FROM noise_readings "
+		"WHERE noise_readings.rtime > %s"
 	)
 	cursor.execute(query, start)
 	global maxval
@@ -195,9 +193,9 @@ def query_max_noise(start):
 def query_min_noise(start):
 	cursor = db.cursor()
 	query = (
-		#TODO:
-		#TODO:
-		#TODO:
+		"SELECT MIN(noise_readings.noise_level) as min "
+		"FROM noise_readings "
+		"WHERE noise_readings.rtime > %s"
 	)
 	cursor.execute(query, start)
 	global minval
@@ -206,8 +204,8 @@ def query_min_noise(start):
 	cursor.close()
 	return minval
 
+######## NO MODIFICATIONS REQUIRED BELOW THIS LINE (in student copy)########
 
-################### NO MODIFICATIONS REQUIRED BELOW THIS LINE #########################
 def signal_outputs(level,avg_wind):
 	if int(level) > 1023:
 		level = 1023
@@ -244,7 +242,7 @@ while True:
 		print('Time {}  ::  Noise ->  {} units'.format(formated_time, current_noise))
 		print('               ::  Wind  ->  {} mph'.format(current_wind))
 
-		# insert the sensor readings into the database
+		# insert the data into the database
 		insert_noise_reading()
 		insert_wind_speed()
 
