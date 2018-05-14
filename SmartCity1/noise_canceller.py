@@ -82,7 +82,7 @@ def do_insert(sql,data):
 
 def insert_noise_data(start, end, avg, max, min):
 	dml_string = (
-            	#TODO:
+		#TODO:
 		#TODO:
         )
 	data = ()#TODO:
@@ -91,7 +91,7 @@ def insert_noise_data(start, end, avg, max, min):
 
 def insert_noise_reading():
 	dml_string = (
-            	#TODO:
+		#TODO:
 		#TODO:
         )
 	data = ()#TODO:Hint: these variables are global delcared above
