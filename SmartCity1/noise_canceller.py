@@ -48,8 +48,8 @@ global iteration
 iteration = 0
 
 #connect to MySQLdb
-#                    <host>      <MySQL user>    <pwrd>       <db_name>
-db=MySQLdb.connect("localhost", "station_admin", "tcss499", "noise_canceller")
+#ex:         MySQLdb.connect("<host>","<MySQL user>","<pwrd>","<db_name>")
+#TODO: db=MySQLdb.connect()
 
 
 
