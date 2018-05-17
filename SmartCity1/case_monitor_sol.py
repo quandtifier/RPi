@@ -1,12 +1,15 @@
 #!/usr/bin/python
 
+#################
+#SOLUTION SCRIPT
+#################
+
 # IoT Education in Research
 # TCSS499 Research Group
 # University of Washington, Tacoma
 
 
 # Program Spec
-# After successful completion of this script:
 # case_monitor.py opens a connection with MySQLdb then runs monitoring logic
 # with the GrovePi+ sensors to obtain readings from inside of the noise
 # cancellation station's hardware case. The program simulates temperature
@@ -42,8 +45,8 @@ from decimal import Decimal
 
 ##################################### MANAGE CONNECTIONS ###########################
 #connect to MySQLdb
-#ex:         MySQLdb.connect("<host>","<MySQL user>","<pwrd>","<db_name>")
-#TODO: db=MySQLdb.connect()
+#                    <host>      <MySQL user>      <pwrd>      <db_name>
+db=MySQLdb.connect("localhost", "station_admin", "tcss499", "noise_canceller")
 
 # populate sample data
 station_admin_staffer.build_schedules(db)
@@ -83,8 +86,8 @@ def do_insert(sql,data):
 # populate the temp and humidity data into the database
 def insert_ths(time, temp, humid):
 	dml_string = (
-		TODO:
-		TODO:
+		"INSERT INTO ths_readings (rtime, temperature, humidity) "
+		"VALUES (%s,%s,%s)"
 	)
 	data = (time, temp, humid)
 	do_insert(dml_string, data)
@@ -92,8 +95,8 @@ def insert_ths(time, temp, humid):
 # adds new notifications to the database
 def insert_notification(time, email, temp, humid, fan):
 	dml_string = (
-		TODO:
-		TODO:
+		"INSERT INTO notifications (ntime, admin_email, temperature, humidity, fan_level) "
+		"VALUES (%s,%s,%s,%s,%s)"
 	)
 	data = (time, email, temp, humid, fan)
 	do_insert(dml_string, data)
@@ -101,8 +104,8 @@ def insert_notification(time, email, temp, humid, fan):
 # adds new administrators to the database
 def insert_admin(email, fname, lname, schedule, manager):
 	dml_string = (
-		TODO:
-		TODO:
+		"INSERT INTO administrator (email, fname, lname, schedule_id, mgr_email) "
+		"VALUES (%s,%s,%s,%s,%s)"
 	)
 	data = (email, fname, lname, schedule, manager)
 	do_insert(dml_string, data)
@@ -111,8 +114,8 @@ def insert_admin(email, fname, lname, schedule, manager):
 # adds new admin_schedules. id numbers 1, 2, and 3 are taken by sample data
 def insert_schedule(schedule_id, day1, day2):
 	dml_string = (
-		TODO:
-		TODO:
+		"INSERT INTO admin_schedules (id, off_day_1, off_day_2) "
+		"VALUES (%s,%s,%s)"
 	)
 	data = (schedule_id, day1, day2)
 	do_insert(dml_string, data)
@@ -123,9 +126,9 @@ def insert_schedule(schedule_id, day1, day2):
 def query_avg_temp(start):
 	cursor = db.cursor()
 	query = (
-		TODO:
-		TODO:
-		TODO:
+		"SELECT AVG(temperature) as avg "
+		"FROM ths_readings "
+		"WHERE rtime > %s"
 	)
 	cursor.execute(query, start)
 	global avgval
@@ -139,9 +142,9 @@ def query_avg_temp(start):
 def query_avg_humid(start):
 	cursor = db.cursor()
 	query = (
-		TODO:
-		TODO:
-		TODO:
+		"SELECT AVG(humidity) as avg "
+		"FROM ths_readings "
+		"WHERE rtime > %s"
 	)
 	cursor.execute(query, start)
 	global avgval
@@ -154,18 +157,15 @@ def query_avg_humid(start):
 def query_admin_schedule():
 	cursor = db.cursor()
 	query = (
-		TODO:
-		TODO:
-		TODO:
+		"SELECT email as avail_admins "
+		"FROM administrators, admin_schedules "
+		"WHERE id=schedule_id AND %s <> off_day_1 AND %s <> off_day_2"
 	)
 	data = (day_of_week, day_of_week)
 	cursor.execute(query, data)
 	emails = list(cursor.fetchall())
 	cursor.close()
 	return emails
-
-##################### No changes below this line #####################
-
 
 
 # finds who is working today then inserts a notification for 
