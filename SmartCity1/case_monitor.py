@@ -56,9 +56,26 @@ btn = 6
 grovepi.pinMode(btn,"INPUT")
 ths = 4
 
+# Program execution variable for weekdays to correlate with admin_schedules
+# Use lowercase first 3 letters day of week being tested
+# 'fri'day should be the only day with all 5 notifications added
 global day_of_week 
-day_of_week = "mon" #lowercase first 3 letters day of week being tested
+day_of_week = "fri" 
 iteration = 0
+
+
+def do_insert(sql,data):
+	# save the current readings to the database
+        cursor = db.cursor()
+	try:
+		print(sql)
+		print(data)
+            	cursor.execute(sql, data)
+            	db.commit()
+        except:
+            	db.rollback()
+	finally:
+		cursor.close()
 
 
 def insert_ths(time, temp, humid):
@@ -69,6 +86,7 @@ def insert_ths(time, temp, humid):
 	data = (time, temp, humid)
 	do_insert(dml_string, data)
 
+
 def insert_notification(time, email, temp, humid, fan):
 	dml_string = (
 		"INSERT INTO notifications (ntime, admin_email, temperature, humidity, fan_level) "
@@ -77,6 +95,7 @@ def insert_notification(time, email, temp, humid, fan):
 	data = (time, email, temp, humid, fan)
 	do_insert(dml_string, data)
 
+
 def insert_admin(email, fname, lname, schedule, manager):
 	dml_string = (
 		"INSERT INTO administrator (email, fname, lname, schedule_id, mgr_email) "
@@ -84,6 +103,7 @@ def insert_admin(email, fname, lname, schedule, manager):
 	)
 	data = (email, fname, lname, schedule, manager)
 	do_insert(dml_string, data)
+
 
 def insert_schedule(schedule_id, day1, day2):
 	dml_string = (
@@ -108,6 +128,7 @@ def query_avg_temp(start):
 	cursor.close()
 	return avgval
 
+
 def query_avg_humid(start):
 	cursor = db.cursor()
 	query = (
@@ -122,7 +143,8 @@ def query_avg_humid(start):
 	cursor.close()
 	return avgval
 
-def notify_oncall_admins():
+
+def query_admin_schedule():
 	cursor = db.cursor()
 	query = (
 		"SELECT email as avail_admins "
@@ -137,36 +159,42 @@ def notify_oncall_admins():
 	cursor.close()
 	return emails
 
-def do_insert(sql,data):
-	# save the current readings to the database
-        cursor = db.cursor()
-	try:
-		print(sql)
-		print(data)
-            	cursor.execute(sql, data)
-            	db.commit()
-        except:
-            	db.rollback()
-	finally:
-		cursor.close()
 
-def signal_outputs():
-	if int(level) > 1023:
-		level = 1023
-	grovepi.analogWrite(led,int(level)//4)
-	
-	cw = str(current_wind)
-	aw = str(int(avg_wind))
-	n = str(current_noise)
+def signal_lcd(fan):
 
 	# Control the Grove LCD
 	setRGB(0,128,64)
-	if current_wind >= 75:
-		setText("Operation Halt:\n" + "Windspeed= " + cw +"mph")
+	if fan >= 0:
+		setText("Fan Level = " + str(int(fan)) +"%")
+	elif fan == -1:
+		setText("Acquiring data\nPlease wait...")
 	else:
-		setText("avgwind=" + aw + "mph\n" + "noise=" + n + "units")
+		setText("Fan Malfunction\nNotified admins")
 
+# 
+def manipulate_fan(avg_temp, avg_humid):
+	over_temp = avg_temp - 22 
+	fan_op_level = 0
+	if over_temp > 2 or avg_humid > 80:
+		fan_op_level = 100
+	elif over_temp > 1 or avg_humid > 50:
+		fan_op_level = 50
+	else:
+		fan_op_level = avg_humid
+	return fan_op_level
 
+def build_notification(fan):
+	available_admins = query_admin_schedule()
+	for email in available_admins:
+		form_email = string.replace(str(email),"(","")  #format the email for re-insertion
+		form_email = string.replace(form_email,")","")
+		form_email = string.replace(form_email," ","")
+		form_email = string.replace(form_email,",","")
+		form_email = string.replace(form_email,"\"","")
+		form_email = string.replace(form_email,"\'","")
+		insert_notification(localtime,form_email,avg_temp_delta_n,avg_humid_delta_n,fan)
+
+signal_lcd(-1) #acquire data message
 # Operational Loop
 while True:
 	try:
@@ -175,39 +203,25 @@ while True:
 		# get the system time
 		localtime = datetime.datetime.now()
 		
-		# store the current temperature and humidity reading
+		# read and store the current temperature and humidity 
 		[temperature,humidity] = grovepi.dht(ths,0) # 0 indicates the sensor type
 		if math.isnan(temperature) == False and math.isnan(humidity) == False:
 			# print data, localtime is parsed to have form: <'HH:MM:SS'>
 			print('Time {} :: Temperature = {}, Humidity = {}'.format(localtime.strftime('%H:%M:%S'), temperature, humidity))
         	insert_ths(localtime,temperature,humidity)
 		
-		fan_malf = grovepi.digitalRead(btn)
 		if iteration % 5 == 0:
 			start_time = localtime - datetime.timedelta(seconds=10)
 			avg_temp_delta_n = query_avg_temp(start_time)
 			avg_humid_delta_n = query_avg_humid(start_time)
-			print('malf {} '.format(fan_malf))
-			over_temp = 21 - avg_temp_delta_n
-			fan_op_level = 0
-			if fan_malf == 1:
-				available_admins = notify_oncall_admins()
-				for email in available_admins:
-					form_email = string.replace(str(email),"(","")
-					form_email = string.replace(form_email,")","")
-					form_email = string.replace(form_email," ","")
-					form_email = string.replace(form_email,",","")
-					form_email = string.replace(form_email,"\"","")
-					form_email = string.replace(form_email,"\'","")
-					insert_notification(localtime,form_email,avg_temp_delta_n,avg_humid_delta_n,fan_op_level)
-			elif over_temp > 2 or avg_humid_delta_n > 80:
-				fan_op_level = 100
-			elif over_temp > 1 or avg_humid_delta_n > 50:
-				fan_op_level = 50
+			fan = 0
+			if int(grovepi.digitalRead(btn)) == 1:
+				build_notification(fan)
+				fan = -2
 			else:
-				fan_op_level = avg_humid_delta_n * .1
-			#insert_notification(localtime,"boss@ncs.com",avg_temp_delta_n,avg_humid_delta_n,fan_op_level)
-
+				fan = manipulate_fan(avg_temp_delta_n, avg_humid_delta_n)
+			signal_lcd(fan)
+			
 	# stop the program
 	except KeyboardInterrupt as k:
 		print('Keyboard interruption... Now exiting: %s'%k)
@@ -219,3 +233,5 @@ while True:
 
 
 db.close()
+setRGB(0,0,0)
+setText("")
