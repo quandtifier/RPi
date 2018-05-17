@@ -37,6 +37,7 @@ import grovepi
 import time
 import datetime
 import math
+import string
 import station_admin_staffer
 from grove_rgb_lcd import *
 from decimal import Decimal
@@ -51,9 +52,12 @@ station_admin_staffer.build_schedules(db)
 station_admin_staffer.staff_admins(db)
 
 # Physical connecections
-btn = 5
+btn = 6
+grovepi.pinMode(btn,"INPUT")
 ths = 4
 
+global day_of_week 
+day_of_week = "mon" #lowercase first 3 letters day of week being tested
 iteration = 0
 
 
@@ -118,13 +122,27 @@ def query_avg_humid(start):
 	cursor.close()
 	return avgval
 
+def notify_oncall_admins():
+	cursor = db.cursor()
+	query = (
+		"SELECT email as avail_admins "
+		"FROM administrators, admin_schedules "
+		"WHERE id=schedule_id AND %s <> off_day_1 AND %s <> off_day_2"
+	)
+	data = (day_of_week, day_of_week)
+	cursor.execute(query, data)
+	emails = list(cursor.fetchall())
+	print("emails: " + str(emails[0]))
+	do_insert(query,data)
+	cursor.close()
+	return emails
 
 def do_insert(sql,data):
 	# save the current readings to the database
         cursor = db.cursor()
 	try:
-		#print(sql)
-		#print(data)
+		print(sql)
+		print(data)
             	cursor.execute(sql, data)
             	db.commit()
         except:
@@ -132,7 +150,7 @@ def do_insert(sql,data):
 	finally:
 		cursor.close()
 
-def signal_outputs(level,avg_wind):
+def signal_outputs():
 	if int(level) > 1023:
 		level = 1023
 	grovepi.analogWrite(led,int(level)//4)
@@ -152,7 +170,7 @@ def signal_outputs(level,avg_wind):
 # Operational Loop
 while True:
 	try:
-		iteration = iteration + 1
+		iteration += 1
 		time.sleep(2)
 		# get the system time
 		localtime = datetime.datetime.now()
@@ -164,17 +182,35 @@ while True:
 			print('Time {} :: Temperature = {}, Humidity = {}'.format(localtime.strftime('%H:%M:%S'), temperature, humidity))
         	insert_ths(localtime,temperature,humidity)
 		
+		fan_malf = grovepi.digitalRead(btn)
 		if iteration % 5 == 0:
 			start_time = localtime - datetime.timedelta(seconds=10)
 			avg_temp_delta_n = query_avg_temp(start_time)
 			avg_humid_delta_n = query_avg_humid(start_time)
+			print('malf {} '.format(fan_malf))
+			over_temp = 21 - avg_temp_delta_n
 			fan_op_level = 0
-			insert_notification(localtime,"boss@ncs.com",avg_temp_delta_n,avg_humid_delta_n,fan_op_level)
+			if fan_malf == 1:
+				available_admins = notify_oncall_admins()
+				for email in available_admins:
+					form_email = string.replace(str(email),"(","")
+					form_email = string.replace(form_email,")","")
+					form_email = string.replace(form_email," ","")
+					form_email = string.replace(form_email,",","")
+					form_email = string.replace(form_email,"\"","")
+					form_email = string.replace(form_email,"\'","")
+					insert_notification(localtime,form_email,avg_temp_delta_n,avg_humid_delta_n,fan_op_level)
+			elif over_temp > 2 or avg_humid_delta_n > 80:
+				fan_op_level = 100
+			elif over_temp > 1 or avg_humid_delta_n > 50:
+				fan_op_level = 50
+			else:
+				fan_op_level = avg_humid_delta_n * .1
+			#insert_notification(localtime,"boss@ncs.com",avg_temp_delta_n,avg_humid_delta_n,fan_op_level)
 
 	# stop the program
 	except KeyboardInterrupt as k:
 		print('Keyboard interruption... Now exiting: %s'%k)
-		grovepi.digitalWrite(led, 0)
 		break
 
 	# error logging
