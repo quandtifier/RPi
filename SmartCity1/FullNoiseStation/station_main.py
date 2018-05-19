@@ -61,32 +61,33 @@ global ths
 global btn
 global db
 
+# Connect the sound sensor to analog port A1
+soundsensor = 1
+grovepi.pinMode(soundsensor,"INPUT")
+# Connect the potentiometer to analog port A2
+potentiometer = 2
+grovepi.pinMode(potentiometer,"INPUT")
+# Connect the LED to analog port A3
+
+ths = 4
+grovepi.pinMode(ths,"INPUT")
+led = 3
+grovepi.pinMode(led,"OUTPUT")
+btn = 6
+grovepi.pinMode(btn,"INPUT")
+#connect to MySQLdb
+#  <host>      <MySQL user>      <pwrd>      <db_name>
+db=MySQLdb.connect("localhost", "station_admin", "tcss499", "noise_canceller")
+
 # day_of_week used to correlate with admin_schedules
 # Use lowercase first 3 letters of the day_of_week being tested
 # 'fri'day should be the only day with all 5 notifications added
 global day_of_week
+day_of_week = 'mon'
 global period_for_average
+period_for_average = 5
 
 
-def set_connections():
-    # Connect the sound sensor to analog port A1
-    soundsensor = 1
-    grovepi.pinMode(soundsensor,"INPUT")
-    # Connect the potentiometer to analog port A2
-    potentiometer = 2
-    grovepi.pinMode(potentiometer,"INPUT")
-    # Connect the LED to analog port A3
-    led = 3
-    grovepi.pinMode(led,"OUTPUT")
-
-    ths = 4
-    grovepi.pinMode(ths,"INPUT")
-    # Physical connections
-    btn = 6
-    grovepi.pinMode(btn,"INPUT")
-    #connect to MySQLdb
-    #                    <host>      <MySQL user>      <pwrd>      <db_name>
-    db=MySQLdb.connect("localhost", "station_admin", "tcss499", "noise_canceller")
 
 
 
@@ -107,75 +108,76 @@ def signal_noise_cancel(level):
 
 
 def closeStation():
-    db.close()
-    grovepi.analogWrite(led,0)
-    setRGB(0,0,0)
-    setText("")
+	db.close()
+	grovepi.analogWrite(led,0)
+	setRGB(0,0,0)
+	setText("")
 
 
 def main():
-    set_connections():
-    # populate sample data
-    station_admin_staffer.build_schedules(db)
-    station_admin_staffer.staff_admins(db)
+	#populate sample data
+	station_admin_staffer.build_schedules(db)
+	station_admin_staffer.staff_admins(db)
 
-    day_of_week = "mon"
-    period_for_average = 5  #           # 10sec=5cyc * 2sec/cyc
-    iteration = 0
-    signal_lcd(-1,0) #acquire data message
-    ################# Operational Loop ################
-    while True:
-    	try:
-    		iteration += 1
-    		time.sleep(2)
-    		# get the system time
-    		localtime = datetime.datetime.now()
-            print('Time{} :: '.format(localtime.strftime('%H:%M:%S'))
+	day_of_week = "mon"
+	period_for_average = 5  #           # 10sec=5cyc * 2sec/cyc
+	iteration = 0
+	signal_lcd(-1,0) #acquire data message
+	################# Operational Loop ################
+	while True:
+		try:
+			is_malf = int(grovepi.digitalRead(btn))
+			iteration += 1
+			
+			#get the system time
+			localtime = datetime.datetime.now()
+			
+			
+			################NOISE_CANCELLER##################
+			#store the current sound and wind sensor readings
+			current_noise = grovepi.analogRead(soundsensor)
+			current_wind = grovepi.analogRead(potentiometer) / 10
 
+			#insert the data into the database
+			noise_canceller.insert_noise_reading(localtime,current_noise)
+			noise_canceller.insert_wind_speed(localtime,current_wind)
+			
+			################CASE_MONITOR##################
+			#read and store the current temperature and humidity
+			
+			[temperature,humidity] = grovepi.dht(ths,0) # 0 indicates the sensor type
+			time.sleep(2)			
+			case_monitor.insert_ths(localtime,temperature,humidity)
+			
+			############POPULATE AVERAGES EVERY N SECONDS######
+			#every 'period_for_average' number of seconds insert a tuple of aggregate data
+			if iteration % period_for_average == 0:
+				avg_noise=noise_canceller.average_data(localtime,period_for_average)
+				
+				fan=case_monitor.average_data(localtime,period_for_average,day_of_week,is_malf)
+				signal_lcd(fan,avg_noise)
+				#if the wind > 75 we will not do any noise cancellation
+			global output_intensity
+			if current_wind < 75:
+				output_intensity = current_noise * 3
+			else:
+				output_intensity = 0
+			signal_noise_cancel(output_intensity)
+			print("")
+			print('Time{}: '.format(localtime.strftime('%H:%M:%S')))
+			print(':: Noise       = {} units'.format(current_noise))
+			print(':: Wind        = {} mph'.format(current_wind))
+			print(':: Temperature = {}\n:: Humidity    = {}'.format(temperature, humidity))
+		#stop the program
+		except KeyboardInterrupt as k:
+			print('Keyboard interruption... Now exiting: %s'%k)
+			break
 
-            ################NOISE_CANCELLER##################
-    		# store the current sound and wind sensor readings
-    		current_noise = grovepi.analogRead(soundsensor)
-    		current_wind = grovepi.analogRead(potentiometer) / 10
-    		# print data, localtime is parsed to have form: <'HH:MM:SS'>
-    		print(' Noise ->  {} units'.format(current_noise))
-    		print('::  Wind  ->  {} mph'.format(current_wind))
-    		# insert the data into the database
-    		noise_canceller.insert_noise_reading(localtime,current_noise)
-    		noise_canceller.insert_wind_speed(localtime,current_wind)
+		#error logging
+		except IOError:
+			print("Error")
 
-            ################CASE_MONITOR##################
-    		# read and store the current temperature and humidity
-    		[temperature,humidity] = grovepi.dht(ths,0) # 0 indicates the sensor type
-    		if math.isnan(temperature) == False and math.isnan(humidity) == False:
-    			# print data, localtime is parsed to have form: <'HH:MM:SS'>
-    			print(':: Temperature = {},\n:: Humidity = {}'.format(temperature, humidity))
-            	case_monitor.insert_ths(localtime,temperature,humidity)
-
-            ############POPULATE AVERAGES EVERY N SECONDS######
-            # every 'period_for_average' number of seconds insert a tuple of aggregate data
-            if iteration % period_for_average == 0:
-                avg_noise=noise_canceller.average_data(localtime,period_for_average)
-                fan=case_monitor.average_data(localtime,period_for_average,day_of_week)
-                signal_lcd(fan,avg_noise)
-    		#if the wind > 75 we will not do any noise cancellation
-    		global output_intensity
-    		if current_wind < 75:
-    			output_intensity = current_noise * 3
-    		else:
-    			output_intensity = 0
-    		signal_noise_cancel(output_intensity)
-    	# stop the program
-    	except KeyboardInterrupt as k:
-    		print('Keyboard interruption... Now exiting: %s'%k)
-    		break
-
-    	# error logging
-    	except IOError:
-    		print("Error")
-
-    closeStation()
-
+	closeStation()
 
 
 if __name__ == '__main__':

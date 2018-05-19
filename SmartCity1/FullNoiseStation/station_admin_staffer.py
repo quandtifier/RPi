@@ -4,7 +4,7 @@ def do_insert(db,sql):
 	# save the current readings to the database
         cursor = db.cursor()
 	try:
-		print(sql)
+		#print(sql)
             	cursor.execute(sql)
             	db.commit()
         except:
