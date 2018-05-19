@@ -186,9 +186,9 @@ DROP TABLE IF EXISTS `wind_data`;
 CREATE TABLE `wind_data` (
   `start_of_delta` time NOT NULL,
   `end_of_delta` time DEFAULT NULL,
-  `avg_noise` decimal(10,0) DEFAULT NULL,
-  `max_noise` decimal(10,0) DEFAULT NULL,
-  `min_noise` decimal(10,0) DEFAULT NULL,
+  `avg_wind` decimal(10,0) DEFAULT NULL,
+  `max_wind` decimal(10,0) DEFAULT NULL,
+  `min_wind` decimal(10,0) DEFAULT NULL,
   PRIMARY KEY (`start_of_delta`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;

@@ -39,7 +39,7 @@ def insert_noise_reading(time, current_noise):
 ####################### insert wind ################
 def insert_wind_data(start, end, avg, max, min):
 	dml_string = (
-		"INSERT INTO wind_data (start_of_delta, end_of_delta, avg_noise, max_noise, min_noise) "
+		"INSERT INTO wind_data (start_of_delta, end_of_delta, avg_wind, max_wind, min_wind) "
             	"VALUES (%s,%s,%s,%s,%s)"
 	)
 	data = (start, end, avg, max, min)

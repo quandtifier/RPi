@@ -60,15 +60,15 @@ global btn
 global db
 
 
-# Connect the sound sensor to analog port A1
+# Connect the sound sensor to Port A1
 soundsensor = 1
 grovepi.pinMode(soundsensor,"INPUT")
 
-# Connect the potentiometer to analog port A2
+# Connect the potentiometer to Port A2
 potentiometer = 2
 grovepi.pinMode(potentiometer,"INPUT")
 
-# Connect the LED to Port A3
+# Connect the LED to Port D3
 led = 3
 grovepi.pinMode(led,"OUTPUT")
 
