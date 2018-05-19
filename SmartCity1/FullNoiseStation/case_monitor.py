@@ -8,40 +8,16 @@
 # TCSS499 Research Group
 # University of Washington, Tacoma
 
-# Get the necessary libraries for interfacing
-import MySQLdb
-import grovepi
-import time
-import datetime
-import math
-import string
+# case_monitor.py contains the sql query functions and noise canceller
+# protection system logic.  It is intended to be used with the drive
+# script station_main.py 
+
+# libraries for interfacing
 import station_main
-import station_admin_staffer
-from grove_rgb_lcd import *
-from decimal import Decimal
+import datetime
+import string
 
-
-
-
-
-
-
-################################## functions for db interaction ###############
-# executes the insert.  No changes here but uncommenting the print()s
-# may help with debugging
-def do_insert(sql,data):
-	# save the current readings to the database
-        cursor = db.cursor()
-	try:
-		#print(sql)
-		#print(data)
-            	cursor.execute(sql, data)
-            	db.commit()
-        except:
-            	db.rollback()
-	finally:
-		cursor.close()
-
+############################## INSERTS ###############
 # populate the temp and humidity data into the database
 def insert_ths(time, temp, humid):
 	dml_string = (
@@ -80,6 +56,7 @@ def insert_schedule(schedule_id, day1, day2):
 	do_insert(dml_string,data)
 
 
+############################## QUERIES ##################
 # find the average temp from a given start time
 # until the current time
 def query_avg_temp(start):
@@ -112,9 +89,10 @@ def query_admin_schedule(day):
 	)
 	data = (day, day)
 	result = list(execute_query(query,data))
-	return result[0]
+	return result
 
 
+######################## program logic functions ###################
 # finds who is working today then inserts a notification for
 # every available administrator
 def build_notification(fan,temp,humid,day,time):
@@ -126,10 +104,7 @@ def build_notification(fan,temp,humid,day,time):
 		form_email = string.replace(form_email,",","")
 		form_email = string.replace(form_email,"\"","")
 		form_email = string.replace(form_email,"\'","")
-		insert_notification(time,form_email,temp,humid,fan)
-
-######################## program logic functions ###################
-
+		insert_notification(time,form_email,int(temp),int(humid),fan)
 
 # get the simulated fan level
 def manipulate_fan(avg_temp, avg_humid):
@@ -143,10 +118,8 @@ def manipulate_fan(avg_temp, avg_humid):
 		fan_op_level = avg_humid
 	return fan_op_level
 
-def close():
-	setRGB(0,0,0)
-	setText("")
-
+# averages the last 'delta' seconds of data, then calls
+# build_notification to send the report
 def average_data(time,delta,day,malf):
 	start_time = time - datetime.timedelta(seconds=delta*2)
 	avg_temp_delta_n = query_avg_temp(start_time)
@@ -159,8 +132,7 @@ def average_data(time,delta,day,malf):
 		fan = manipulate_fan(avg_temp_delta_n,avg_humid_delta_n)
 	return int(fan)
 
-
-
+# execute a query and return the tuple
 def execute_query(sql,data):
 	db = station_main.db
 	cursor = db.cursor()

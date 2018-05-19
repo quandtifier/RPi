@@ -1,26 +1,24 @@
 #!/usr/bin/python
 
+#################
+#SOLUTION SCRIPT
+#################
 
 # IoT Education in Research
 # TCSS499 Research Group
 # University of Washington, Tacoma
 
+# noise_canceller.py simulates contains the MySQL query functions
+# and program logic pertaining to the simulated noise_cancellation 
+# process of the Noise Cancellation Station Lab. This script is
+# intended to be driven my station_main.py
 
-import MySQLdb
-import grovepi
-import time
+# Libraries
 import datetime
 import station_main
-from grove_rgb_lcd import *
-from decimal import Decimal
 
 
-
-
-
-
-
-
+####################### insert noise ################
 def insert_noise_data(start, end, avg, max, min):
 	dml_string = (
             	"INSERT INTO noise_data (start_of_delta, end_of_delta, avg_noise, max_noise, min_noise) "
@@ -28,8 +26,6 @@ def insert_noise_data(start, end, avg, max, min):
         )
 	data = (start, end, avg, max, min)
 	do_insert(dml_string,data)
-
-####################### insert noise ################
 
 def insert_noise_reading(time, current_noise):
 	dml_string = (
@@ -39,8 +35,8 @@ def insert_noise_reading(time, current_noise):
 	data = (time, current_noise)
 	do_insert(dml_string,data)
 
-####################### insert wind ################
 
+####################### insert wind ################
 def insert_wind_data(start, end, avg, max, min):
 	dml_string = (
 		"INSERT INTO wind_data (start_of_delta, end_of_delta, avg_noise, max_noise, min_noise) "
@@ -49,7 +45,6 @@ def insert_wind_data(start, end, avg, max, min):
 	data = (start, end, avg, max, min)
 	do_insert(dml_string,data)
 
-
 def insert_wind_speed(time, current_wind):
 	dml_string = (
 		"INSERT INTO wind_speeds (rtime, wind_speed) "
@@ -57,8 +52,9 @@ def insert_wind_speed(time, current_wind):
 	)
 	data = (time, current_wind)
 	do_insert(dml_string,data)
-####################### aggregate wind data retrievals ################
 
+
+####################### aggregate wind data retrievals ################
 def query_avg_wind(start):
 	query = (
 		"SELECT AVG(wind_speeds.wind_speed) as avg "
@@ -88,7 +84,6 @@ def query_min_wind(start):
 
 
 ####################### aggregate noise data retrievals ################
-
 def query_avg_noise(start):
 	query = (
 		"SELECT AVG(noise_readings.noise_level) as avg "
@@ -117,11 +112,7 @@ def query_min_noise(start):
 
 	return result[0][0]
 
-######## NO MODIFICATIONS REQUIRED BELOW THIS LINE (in student copy)########
-
-
-
-
+######## Operational Functions and Helper ########
 def average_data(time,delta):
 	start_time = time - datetime.timedelta(seconds=delta*2)
 	avg_wind_delta_n = query_avg_wind(start_time)
